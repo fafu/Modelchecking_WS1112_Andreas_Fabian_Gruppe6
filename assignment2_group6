@@ -1,7 +1,9 @@
 1.
 
-modelling decisions:
- turn and flag variables as boolean (only values are 1 and 0)
+for the promela model of the algorithm, please see file exercise4_part1.pml
+
+modelling annotations:
+ turn and flag variables as boolean (since they only have values of 1 and 0)
  turn initialized nondeterministically to represent unknown initial value
  processes as non-active proctypes started by init process
  
@@ -10,54 +12,90 @@ modelling decisions:
   ...code...
  goto Loop
 
- while(c) do S modelled as 
- do 
+ "while(c) do S"
+   modelled as 
+ "do 
  ::(c)->S  
  ::else break
- od
+ od"
 
- await flag[1-i] == 0 modelled as
- (flag[1-i] == 0)
-
-complete code: 
-
-bool turn, flag[2];
-
-init
-{
-  if
-  ::turn = true;
-  ::turn = false;
-  fi;
-  
-  flag[0] = 0;
-  flag[1] = 0;
-  run p0();
-  run p1()
-}
-
-proctype p0()
-{
-  Loop:
-  flag[0] = 1;
-  do
-  ::(turn == 1) -> (flag[1] == 0) -> turn = 0
-  ::else break
-  od;
-  flag[0] = 0;
-  goto Loop
-}
-
-proctype p1()
-{
-  Loop:
-  flag[1] = 1;
-  do
-  ::(turn == 0) -> (flag[0] == 0) -> turn = 1
-  ::else break
-  od;
-  flag[1] = 0;
-  goto Loop
-}
+ "await flag[1-i] == 0"
+   modelled as
+ "(flag[1-i] == 0)"
 
 2.
+
+the model in exercise4_part1.pml represents the algorithm as given.
+it does not, however, enable us to find a problem with the algorithm. 
+since the algorithm is designed to ensure mutual exclusion it should not allow both processes to be in their critical section at the same time. 
+since a process is only allowed to be in its critical section when the turn variable is set to its, the process', index, we added an assertion in the model to check that turn == i after the do loop is left by process i.
+
+see exercise4_part2.pml for the resulting model. it is the same as exercise4_part2.pml except for those two assertions.
+
+3.
+
+a simple simulation of exercise4_part2.pml with spin eventually yields an assertion failure. 
+to get the shortest trail leading to an assertion failure, create a verifier and run it with the following commands.
+
+spin -a exercise4_part2.pml
+gcc -DREACH -DSAFETY -o pan pan.c
+./pan
+
+4.
+
+look at the trail that was created by the verifier (spin -t -p exercise4_part2.pml)
+
+
+
+
+spin -t -p exercise4_part2.pml
+  1:	proc  0 (:init:) exercise4_part2.pml:6 (state 1)	[turn = 1]
+  2:	proc  0 (:init:) exercise4_part2.pml:10 (state 5)	[flag[0] = 0]
+  3:	proc  0 (:init:) exercise4_part2.pml:11 (state 6)	[flag[1] = 0]
+Starting p0 with pid 1
+  4:	proc  0 (:init:) exercise4_part2.pml:12 (state 7)	[(run p0())]
+Starting p1 with pid 2
+  5:	proc  0 (:init:) exercise4_part2.pml:13 (state 8)	[(run p1())]
+  6:	proc  2 (p1) exercise4_part2.pml:32 (state 1)	[flag[1] = 1]
+  7:	proc  2 (p1) exercise4_part2.pml:35 (state 5)	[else]
+  8:	proc  2 (p1) exercise4_part2.pml:37 (state 10)	[assert((turn==1))]
+  9:	proc  1 (p0) exercise4_part2.pml:19 (state 1)	[flag[0] = 1]
+ 10:	proc  2 (p1) exercise4_part2.pml:38 (state 11)	[flag[1] = 0]
+ 11:	proc  2 (p1) exercise4_part2.pml:32 (state 1)	[flag[1] = 1]
+ 12:	proc  2 (p1) exercise4_part2.pml:35 (state 5)	[else]
+ 13:	proc  1 (p0) exercise4_part2.pml:21 (state 2)	[((turn==1))]
+ 14:	proc  2 (p1) exercise4_part2.pml:37 (state 10)	[assert((turn==1))]
+ 15:	proc  2 (p1) exercise4_part2.pml:38 (state 11)	[flag[1] = 0]
+ 16:	proc  1 (p0) exercise4_part2.pml:21 (state 3)	[((flag[1]==0))]
+ 17:	proc  2 (p1) exercise4_part2.pml:32 (state 1)	[flag[1] = 1]
+ 18:	proc  2 (p1) exercise4_part2.pml:35 (state 5)	[else]
+ 19:	proc  2 (p1) exercise4_part2.pml:37 (state 10)	[assert((turn==1))]
+ 20:	proc  1 (p0) exercise4_part2.pml:21 (state 4)	[turn = 0]
+ 21:	proc  2 (p1) exercise4_part2.pml:38 (state 11)	[flag[1] = 0]
+ 22:	proc  2 (p1) exercise4_part2.pml:32 (state 1)	[flag[1] = 1]
+ 23:	proc  2 (p1) exercise4_part2.pml:34 (state 2)	[((turn==0))]
+ 24:	proc  1 (p0) exercise4_part2.pml:22 (state 5)	[else]
+ 25:	proc  1 (p0) exercise4_part2.pml:24 (state 10)	[assert((turn==0))]
+ 26:	proc  1 (p0) exercise4_part2.pml:25 (state 11)	[flag[0] = 0]
+ 27:	proc  2 (p1) exercise4_part2.pml:34 (state 3)	[((flag[0]==0))]
+ 28:	proc  1 (p0) exercise4_part2.pml:19 (state 1)	[flag[0] = 1]
+ 29:	proc  1 (p0) exercise4_part2.pml:22 (state 5)	[else]
+ 30:	proc  2 (p1) exercise4_part2.pml:34 (state 4)	[turn = 1]
+ 31:	proc  2 (p1) exercise4_part2.pml:35 (state 5)	[else]
+ 32:	proc  2 (p1) exercise4_part2.pml:37 (state 10)	[assert((turn==1))]
+ 33:	proc  2 (p1) exercise4_part2.pml:38 (state 11)	[flag[1] = 0]
+spin: exercise4_part2.pml:24, Error: assertion violated
+spin: text of failed assertion: assert((turn==0))
+ 34:	proc  1 (p0) exercise4_part2.pml:24 (state 10)	[assert((turn==0))]
+spin: trail ends after 34 steps
+#processes: 3
+		turn = 1
+		flag[0] = 1
+		flag[1] = 0
+ 34:	proc  2 (p1) exercise4_part2.pml:32 (state 1)
+ 34:	proc  1 (p0) exercise4_part2.pml:25 (state 11)
+ 34:	proc  0 (:init:) exercise4_part2.pml:14 (state 9) <valid end state>
+3 processes created
+
+
+ 
