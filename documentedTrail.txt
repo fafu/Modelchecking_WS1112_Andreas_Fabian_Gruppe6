@@ -1,0 +1,9 @@
+27: p1 checks flag[0] == 0 and it is positive and gets directly interrupted
+28: p0 sets flag[0] and 
+29: p0 enters critical section because turn == 0 is still true
+30: p1 sets turn = 1 and
+31: p1 enters critical section
+--> both processes in critical section
+32: p1 checks turn == 1 which is true because he set it last
+33: p1 leaves critical section
+34: p0 checks turn == 0 and notices an assertion failure 

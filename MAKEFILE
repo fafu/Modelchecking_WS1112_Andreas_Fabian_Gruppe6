@@ -1,0 +1,12 @@
+VERSION = 3.02
+CC      = /usr/bin/gcc
+CFLAGS  = -Wall -g -D_REENTRANT -DVERSION=\"$(VERSION)\"
+LDFLAGS = -lm -lpthread `gtk-config --cflags` `gtk-config --libs` -lgthread
+
+#OBJ = datei1.o datei2.o datei3.o datei4.o datei5.o
+
+#prog: $(OBJ)
+ #       $(CC) $(CFLAGS) -o prog $(OBJ) $(LDFLAGS)
+
+#%.o: %.c
+  #      $(CC) $(CFLAGS) -c $<
