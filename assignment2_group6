@@ -1,16 +1,17 @@
 1.
 
-for the promela model of the algorithm, please see file exercise4_part1.pml
+for the promela model of the algorithm, please see file "exercise4_part1.pml".
 
 modelling annotations:
  turn and flag variables as boolean (since they only have values of 1 and 0)
  turn initialized nondeterministically to represent unknown initial value
- processes as non-active proctypes started by init process
+ processes as non-active proctypes started by init process to ensure variable initialization before the processes start
  
- infinite loop as 
- Loop:
+ "for(;;){...}" 
+   modelled as 
+ "Loop:
   ...code...
- goto Loop
+ goto Loop"
 
  "while(c) do S"
    modelled as 
@@ -23,28 +24,40 @@ modelling annotations:
    modelled as
  "(flag[1-i] == 0)"
 
-2.
 
+
+2.
 the model in exercise4_part1.pml represents the algorithm as given.
-it does not, however, enable us to find a problem with the algorithm. 
-since the algorithm is designed to ensure mutual exclusion it should not allow both processes to be in their critical section at the same time. 
-since a process is only allowed to be in its critical section when the turn variable is set to its, the process', index, we added an assertion in the model to check that turn == i after the do loop is left by process i.
+this does not, however, enable us to find a problem with the algorithm - there is nothing to actually assert that mutual exclusion is guaranteed.
+a process is only allowed to be in its critical section when the turn variable is set to its, the process', index. therefore, we added an assertion in the model to check that turn == i after the do loop is left by process i.
 
 see exercise4_part2.pml for the resulting model. it is the same as exercise4_part2.pml except for those two assertions.
 
-3.
 
+
+3.
 a simple simulation of exercise4_part2.pml with spin eventually yields an assertion failure. 
-to get the shortest trail leading to an assertion failure, create a verifier and run it with the following commands.
+a relatively short trail leading to an assertion failure can be obtained by creating a verifier and running it with the following commands.
 
 spin -a exercise4_part2.pml
 gcc -DREACH -DSAFETY -o pan pan.c
 ./pan
 
+
+
 4.
+consider the trail listed at the end of this file. it was created by the verifier and can be displayed with the command "spin -t -p exercise4_part2.pml".
+the crucial section starts at step 27.
+27: p1 checks flag[0] within the do loop and reads it as 0. its "program counter" therefore progresses to the next line.
+28: p1 gets interrupted by p0 which requests access to the critical section by setting flag[0] again
+29: p0 enters the critical section (by "break"ing out of the do loop) because turn == 1 is still false so the "else" case is chosen
+30: p1 interrupts p0 and sets turn to 1
+31: p1 goes on to enter the critical section
 
-look at the trail that was created by the verifier (spin -t -p exercise4_part2.pml)
+at this point both processes are in their critical section 
+this results from the fact that it is possible for a process to get interrupted between 1) determining it can enter the critical section and 2) signalling entry by setting the "turn" variable, i.e. between the two commands within the while loop in the pseudocode.
 
+finally one of the two assert statements fails because obviously turn cannot be both 1 and 0. this way the assertions we added serve to discover the flaw in the algorithm.
 
 
 
@@ -96,6 +109,3 @@ spin: trail ends after 34 steps
  34:	proc  1 (p0) exercise4_part2.pml:25 (state 11)
  34:	proc  0 (:init:) exercise4_part2.pml:14 (state 9) <valid end state>
 3 processes created
-
-
- 
