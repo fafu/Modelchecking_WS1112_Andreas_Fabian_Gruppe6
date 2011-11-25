@@ -1,8 +1,9 @@
 #define PROCCOUNT 5 /* Anzahl der gesamten Prozesse muss ungerade sein*/
 #define FAULTYCOUNT 1 /*Anzahl der faulty Prozesse*/
 
-bit startArray[PROCCOUNT];
-bit resultArray[PROCCOUNT];
+bit startValues[PROCCOUNT];
+bit endValues[PROCCOUNT];
+bool finishedProcs[PROCCOUNT];
 
 typedef Arraychan{
 	chan ch[PROCCOUNT] = [1] of {bit};
@@ -65,13 +66,14 @@ proctype faultyProcess(byte i){
 		/*nur um den Kanal zu raeumen, keine Auswertung*/
   		A[round].ch[i]?tempCounter;
 	}
+	finishedProcs[i] = true;
 }
 
 /*Modelliert einen validen Prozess*/
 /*Modell setzt das Protokoll von Berman und Garay um*/
 proctype validProcess(byte i; bool localValue){
 	/*Speichere den Startwert dieses Prozesses*/
-	startArray[i] = localValue;
+	startValues[i] = localValue;
 	printf("This valid process has pid = %d and given i = %d\n",_pid,i);
 	bool proposedValue, tempCounter;
 	byte round, j, valueCounter;
@@ -106,13 +108,28 @@ proctype validProcess(byte i; bool localValue){
 		}
 	}
 	/*Speichere den Endwert dieses Prozesses*/
-	resultArray[i] = localValue;	
+	endValues[i] = localValue;
+	finishedProcs[i] = true;	
 }
+
 
 
 /*Initialsierungsbereich*/
 init {
 	byte i;
+	byte localValueSum;
+	/*Concensus Definition:*/
+	/* 0 = lokale Variable aller validen Prozesse ist 0*/
+	/* 1 = lokale Variable aller validen Prozesse ist 1*/
+	/* 2 = lokale Variable aller validen Prozesse stimmt nicht ueberein*/
+	byte preConsensus = 1;
+	byte postConsensus = 3;
+	bool allFinished = false;
+	/*Setze alle Werte des finishedProcs auf false*/
+	for(i : 0..(PROCCOUNT-1)){
+		finishedProcs[i] = false;
+	}
+	
 	/*Erstelle zuerst alle invaliden Prozesse und danach alle validen Prozesse*/
 	for(i : 0..(PROCCOUNT-1)){
 		if
@@ -120,19 +137,49 @@ init {
 		:: else -> run validProcess(i, 1);
 		fi;
 	}
-	for(i : 0..100){
-		skip;
-	}
+	
 	for(i : 0..(PROCCOUNT-1)){
 		if
 		:: (i<FAULTYCOUNT) -> ;
-		:: else -> printf("Startwert Prozess %d ist %d\n", i, startArray[i]);
+		:: else -> printf("Startwert Prozess %d ist %d und finishedValue: %d\n", i, startValues[i], finishedProcs[i]);
 		fi;
 	}
+	/*Warte bis alle Prozesse terminieren*/
 	for(i : 0..(PROCCOUNT-1)){
-		if
-		:: (i<FAULTYCOUNT) -> ;
-		:: else -> printf("Endwert Prozess %d ist %d\n", i, resultArray[i]);
-		fi;
+		(finishedProcs[i]==true);
 	}
+	
+	atomic{
+		for(i : FAULTYCOUNT..(PROCCOUNT-1)){
+			localValueSum = localValueSum + endValues[i];		
+		}
+		if
+		:: (localValueSum == (PROCCOUNT - FAULTYCOUNT)) -> postConsensus = 1;
+		:: (localValueSum == 0) -> postConsensus = 0;
+		:: else -> postConsensus = 2; 
+		fi
+		/*moeglich: assert(postConsensus != 2)*/
+	}
+	
+	atomic{
+		localValueSum = 0;
+		for(i : FAULTYCOUNT..(PROCCOUNT-1)){
+			localValueSum = localValueSum + startValues[i];		
+		}
+		if
+		:: (localValueSum == (PROCCOUNT - FAULTYCOUNT)) -> preConsensus = 1;
+		:: (localValueSum == 0) -> preConsensus = 0;
+		:: else -> preConsensus = 2; 
+		fi
+		/*moeglich: wenn(preConsensus < 2) dann assert(postConsensus == preConsensus)*/
+	}
+	
+	allFinished = true;
+}
+
+never {
+	do
+	:: 
+	::
+	od
 }
